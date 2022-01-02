@@ -157,7 +157,7 @@ router.get("/:type/:search", async (req, res) => {
     // 로그인 된 유저인지 확인한다 -> 차단된 유저면 return
     // 카테고리, search string 확인
     const { search, type } = req.params;
-    const { category } = req.query;
+    let { category } = req.query;
 
     if (!search) {
       res
@@ -167,20 +167,31 @@ router.get("/:type/:search", async (req, res) => {
     // 타입이 없으면 제목 + 내용
     let sql = "";
     if (type === "title") {
-      sql = `SELECT * FROM tb_board WHERE title LIKE '%${search}%' AND category = '${category}'`;
+      sql = `SELECT * FROM tb_board WHERE title LIKE :search`;
     } else if (type === "contents") {
-      sql = `SELECT * FROM tb_board WHERE contents LIKE '%${search}%' AND category = '${category}'`;
+      sql = `SELECT * FROM tb_board WHERE contents LIKE :search`;
     } else {
       // 제목 + 내
-      sql = `SELECT * FROM tb_board WHERE title LIKE '%${search}%' OR contents LIKE '%${search}%' AND category = ${category}'`;
+      sql = `SELECT * FROM tb_board WHERE title LIKE :search OR contents LIKE :search`;
+    }
+
+    if (category) {
+      sql = sql + " AND category = :category";
     }
 
     // 카테고리가 없으면 전체 카테고를 검색한다.
     const result = await db.sequelize.query(sql, {
-      replacements: [search, category],
+      replacements: { search: "%" + search + "%", category },
       type: QueryTypes.SELECT,
     });
-    res.status(200).json({ result: 1, data: result });
+
+    if (result.length === 0) {
+      res
+        .status(200)
+        .json({ result: -2, data: null, err: "검색 결과가 없습니다" });
+    } else {
+      res.status(200).json({ result: 1, data: result });
+    }
   } catch (e) {
     console.error(e);
     res.status(500).json({ result: -100, data: null, err: "서버 에러 입니다" });

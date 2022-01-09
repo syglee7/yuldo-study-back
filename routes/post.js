@@ -14,9 +14,9 @@ router.get("/", async (req, res) => {
 
     let sql = "";
     if (!category) {
-      sql = "SELECT * FROM `tb_board`";
+      sql = "SELECT * FROM `tb_board` WHERE state = 'Y'";
     } else {
-      sql = "SELECT * FROM `tb_board` WHERE category = ?";
+      sql = "SELECT * FROM `tb_board` WHERE category = ? AND state = 'Y'";
     }
     // db에서 카테고리 글을 불러온다
     const results = await db.sequelize.query(sql, {
@@ -39,7 +39,7 @@ router.get("/:board_seq", async (req, res) => {
     // 글번호에 맞는 글 1개를 가져온다.
     const { board_seq } = req.params;
 
-    let sql = "SELECT * FROM `tb_board` WHERE seq = ?";
+    let sql = "SELECT * FROM `tb_board` WHERE seq = ? AND state = 'Y'";
     const results = await db.sequelize.query(sql, {
       replacements: [board_seq],
       type: QueryTypes.SELECT,
@@ -133,7 +133,7 @@ router.delete("/:board_seq", async (req, res) => {
     // 글쓴이가 맞으면 삭제 아니면 return
 
     if (parseInt(results.cnt) > 0) {
-      let sql = "DELETE FROM `tb_board` WHERE seq = ?";
+      let sql = "UPDATE SET `tb_board` state = 'N' WHERE seq = ?";
       const result = await db.sequelize.query(sql, {
         replacements: [board_seq],
         type: QueryTypes.DELETE,
@@ -167,17 +167,19 @@ router.get("/:type/:search", async (req, res) => {
     // 타입이 없으면 제목 + 내용
     let sql = "";
     if (type === "title") {
-      sql = `SELECT * FROM tb_board WHERE title LIKE :search`;
+      sql = `SELECT * FROM tb_board WHERE title LIKE :search AND state = 'Y'`;
     } else if (type === "contents") {
-      sql = `SELECT * FROM tb_board WHERE contents LIKE :search`;
+      sql = `SELECT * FROM tb_board WHERE contents LIKE :search AND state = 'Y'`;
     } else {
       // 제목 + 내
-      sql = `SELECT * FROM tb_board WHERE title LIKE :search OR contents LIKE :search`;
+      sql = `SELECT * FROM tb_board WHERE title LIKE :search OR contents LIKE :search AND state = 'Y'`;
     }
 
     if (category) {
       sql = sql + " AND category = :category";
     }
+
+    sql = sql + " ORDER BY ins_dttm DESC";
 
     // 카테고리가 없으면 전체 카테고를 검색한다.
     const result = await db.sequelize.query(sql, {
